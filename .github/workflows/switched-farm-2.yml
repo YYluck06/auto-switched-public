@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────
-# 账号 #2 的自动领取工作流（模板，未启用）
+# 账号 #2 的自动领取工作流
 #
 # 启用：重命名为 switched-farm-2.yml，并先添加 SWITCHED_USER_2 /
 #       SWITCHED_PASS_2 / PROXY_CONTENT_2 / TG_TOKEN_2 / TG_CHAT_2 五个密钥
@@ -15,7 +15,7 @@ name: "🪙 Switched Token Farm #2"
 on:
   schedule:
     # 每天一次跑满 25/25。UTC 01:10 = 北京 09:10，已过 UTC 零点额度重置
-    - cron: '10 01 * * *'
+    - cron: '40 01 * * *'
   workflow_dispatch:
     inputs:
       rounds:
