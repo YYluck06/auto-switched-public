@@ -197,11 +197,9 @@ jobs:
       - name: 提交执行时间
         if: always()
         run: |
-          if [ "$ACCOUNT_ID" = "1" ]; then
-            TIME_FILE="time.txt"
-          else
-            TIME_FILE="time_${ACCOUNT_ID}.txt"
-          fi
+          TIME_DIR="switched/${ACCOUNT_ID}"
+          TIME_FILE="${TIME_DIR}/time.txt"
+          mkdir -p "$TIME_DIR"
           {
             echo "账号: #${ACCOUNT_ID}"
             echo "时间: $(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M:%S %Z')"
