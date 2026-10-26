@@ -131,9 +131,15 @@ jobs:
         continue-on-error: true
         working-directory: app
         run: |
+          # 关掉 errexit：脚本非 0 也要把退出码写进 output，否则后续判定读到空值
+          set +e
           set -o pipefail
-          python farm_switched.py 2>&1 | tee "$GITHUB_WORKSPACE/$LOG_DIR/stdout.log"
-          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+          mkdir -p "$LOG_DIR"
+          python farm_switched.py 2>&1 | tee "$LOG_DIR/stdout.log"
+          code=${PIPESTATUS[0]}
+          echo "脚本退出码: $code"
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
 
       - name: 输出日志尾部
         if: always()

@@ -1,17 +1,14 @@
 # ─────────────────────────────────────────────────────────────
 # 账号 #2 的自动领取工作流（模板，未启用）
 #
-# 启用方法：把本文件重命名为 switched-farm-2.yml（去掉 .example）
-#           先在 Settings → Secrets and variables → Actions 添加这 5 个密钥：
-#           SWITCHED_USER_2 / SWITCHED_PASS_2 / PROXY_CONTENT_2 /
-#           TG_TOKEN_2 / TG_CHAT_2
-#           否则该工作流会因缺凭证失败
+# 启用：重命名为 switched-farm-2.yml，并先添加 SWITCHED_USER_2 /
+#       SWITCHED_PASS_2 / PROXY_CONTENT_2 / TG_TOKEN_2 / TG_CHAT_2 五个密钥
 #
 # 代码在私有库 jyucoeng/auto-switched-private（通过 PRIVATE_REPO_SSH_KEY 只读检出）
 # 本文件只放工作流，不放任何代码，公开库的 Actions 分钟数不计费
 #
-# 新增账号：复制 switched-farm.yml 为 switched-farm-3.yml，把里面所有 _1 改成 _3，
-#           ACCOUNT_ID 改成 '3'，再到 Settings → Secrets 添加对应 _3 的密钥
+# 新增账号：复制本文件为 switched-farm-2.yml，把里面所有 _1 改成 _2，
+#           ACCOUNT_ID 改成 '2'，再到 Settings → Secrets 添加对应 _2 的密钥
 # ─────────────────────────────────────────────────────────────
 name: "🪙 Switched Token Farm #2"
 
@@ -42,7 +39,7 @@ env:
   # ── 账号标识：多账号时每个 yml 填不同数字 ──
   ACCOUNT_ID: '2'
 
-  # ── 该账号的凭证（Secret 名称带 _2 后缀）──
+  # ── 该账号的凭证（Secret 名称带 _1 后缀）──
   SWITCHED_USER_2: ${{ secrets.SWITCHED_USER_2 }}
   SWITCHED_PASS_2: ${{ secrets.SWITCHED_PASS_2 }}
   PROXY_CONTENT_2: ${{ secrets.PROXY_CONTENT_2 }}
@@ -137,9 +134,15 @@ jobs:
         continue-on-error: true
         working-directory: app
         run: |
+          # 关掉 errexit：脚本非 0 也要把退出码写进 output，否则后续判定读到空值
+          set +e
           set -o pipefail
-          python farm_switched.py 2>&1 | tee "$GITHUB_WORKSPACE/$LOG_DIR/stdout.log"
-          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+          mkdir -p "$LOG_DIR"
+          python farm_switched.py 2>&1 | tee "$LOG_DIR/stdout.log"
+          code=${PIPESTATUS[0]}
+          echo "脚本退出码: $code"
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
 
       - name: 输出日志尾部
         if: always()
