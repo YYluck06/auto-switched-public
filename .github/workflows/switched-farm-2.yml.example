@@ -4,7 +4,7 @@
 # 启用：重命名为 switched-farm-2.yml，并先添加 SWITCHED_USER_2 /
 #       SWITCHED_PASS_2 / PROXY_CONTENT_2 / TG_TOKEN_2 / TG_CHAT_2 五个密钥
 #
-# 代码在私有库 jyucoeng/auto-switched-private（通过 PRIVATE_REPO_SSH_KEY 只读检出）
+# 代码在私有库 jyucoeng/auto-switched-private（通过 PRIVATE_REPO_TOKEN 检出）
 # 本文件只放工作流，不放任何代码，公开库的 Actions 分钟数不计费
 #
 # 新增账号：复制本文件为 switched-farm-2.yml，把里面所有 _1 改成 _2，
@@ -74,7 +74,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: jyucoeng/auto-switched-private
-          ssh-key: ${{ secrets.PRIVATE_REPO_SSH_KEY }}
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
           path: app
 
       - name: 设置 Python

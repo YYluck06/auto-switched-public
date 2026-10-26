@@ -3,7 +3,7 @@
 switched.cloud Cloud Token 自动领取 —— **只放 GitHub Actions 工作流**。
 
 代码本体在私有库 [`jyucoeng/auto-switched-private`](https://github.com/jyucoeng/auto-switched-private)，
-本仓库的工作流通过 deploy key（`PRIVATE_REPO_SSH_KEY`，只读、无过期）在运行时检出。
+本仓库的工作流通过 Personal Access Token（`PRIVATE_REPO_TOKEN`，无过期）在运行时检出。
 
 > 为什么拆两个库：公开库跑 Actions **不计费**，私有库保存代码不外泄。
 
@@ -27,7 +27,7 @@ switched.cloud Cloud Token 自动领取 —— **只放 GitHub Actions 工作流
 
 | Secret | 说明 |
 |---|---|
-| `PRIVATE_REPO_SSH_KEY` | 私有库只读 deploy key（**已配好**，标题 `auto-switched-private`，无过期） |
+| `PRIVATE_REPO_TOKEN` | 私有库访问 token（**已配好**，classic PAT，**No expiration**，scope `repo`） |
 | `SWITCHED_USER_1` | 账号 #1 用户名 |
 | `SWITCHED_PASS_1` | 账号 #1 密码 |
 | `PROXY_CONTENT_1` | 住宅代理，格式 `hysteria2://<uuid>@<host>:<port>/?sni=...&alpn=h3&insecure=1` |
