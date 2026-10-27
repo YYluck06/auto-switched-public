@@ -230,9 +230,6 @@ cp .github/workflows/switched-farm.yml .github/workflows/switched-farm-3.yml
 ├── switched/
 │   ├── 1/time.txt             账号 #1 最近一次执行记录
 │   └── 2/time.txt             账号 #2 最近一次执行记录
-├── tools/
-│   ├── gen-workflows.py       两个 yml 由同一模板生成，加账号只改这里
-│   └── validate-workflows.py  提交前自检（YAML/表达式/bash/env 五项）
 └── README.md
 ```
 
@@ -295,23 +292,19 @@ requests==2.34.2
 
 ## 改工作流的方式
 
-**不要手工编辑 yml**，两个文件都由同一模板生成：
+两个 yml 相互独立，直接改各自的文件即可。加账号时复制一份、把 `_<N>` 后缀和
+`ACCOUNT_ID` 改掉、再错开 cron。
 
-```bash
-# 1. 改 tools/gen-workflows.py 里的 ACCOUNTS 列表或模板
-vim tools/gen-workflows.py
+### 提交前建议自查
 
-# 2. 重新生成
-python3 tools/gen-workflows.py
-
-# 3. 提交前自检（五项全过才提交）
-python3 tools/validate-workflows.py
-```
-
-`validate-workflows.py` 会检查：
-
-| 检查项 | 挡住的坑 |
+| 检查项 | 怎么查 |
 |---|---|
+| YAML 语法 | 在 GitHub 网页上编辑时右侧会报错；本地 `python3 -c "import yaml;yaml.safe_load(open('文件'))"` |
+| `${{ }}` 写成单花括号 | shell 变量必须写 `${VAR}`，写成 `${{VAR}}` 会被当成表达式，dispatch 直接 422 |
+| 双花括号残留 | shell 的 `{ ... }` 代码块不能写成 `{{ ... }}`，否则 `exit 127` |
+| cron 冲突 | 两个账号的 cron 至少错开 30 分钟 |
+
+---|---|
 | YAML 语法 | 缩进、引号错误 |
 | `${{ }}` 上下文名是否合法 | shell 变量误写成表达式 → dispatch 返回 422 |
 | `${{ }}` 之外是否残留 `{{` 或 `}}` | shell 代码块变成 `{{ ... }}` → `exit 127` |
