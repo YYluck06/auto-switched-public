@@ -1,12 +1,31 @@
-# ─────────────────────────────────────────────────────────────
-# 账号 #1 的自动领取工作流
+# ───────────────────────────────────────────────────────────────
+# 🪙 Switched Token Farm —— 账号 #1
 #
-# 代码在私有库 jyucoeng/auto-switched-private（通过 PRIVATE_REPO_TOKEN 检出）
-# 本文件只放工作流，不放任何代码，公开库的 Actions 分钟数不计费
+# 代码在私有库 jyucoeng/auto-switched-private，用 PRIVATE_REPO_TOKEN 检出。
+# 本仓库只放工作流；公开库的 Actions 分钟数不计费。
 #
-# 新增账号：复制本文件为 switched-farm-2.yml，把里面所有 _1 改成 _2，
-#           ACCOUNT_ID 改成 '2'，再到 Settings → Secrets 添加对应 _2 的密钥
-# ─────────────────────────────────────────────────────────────
+# ── 本文件用到的环境变量（全部会被 farm_switched.py 读取）──
+#   ACCOUNT_ID          账号编号，决定读取 NAME_<ID> 后缀的变量
+#   SWITCHED_USER_<N>   用户名        ← Secret
+#   SWITCHED_PASS_<N>   密码          ← Secret
+#   PROXY_CONTENT_<N>   住宅代理 URL  ← Secret
+#   TG_TOKEN_<N>        TG bot token  ← Secret（可不配，不配不发通知）
+#   TG_CHAT_<N>         TG chat id    ← Secret（可不配）
+#   VYLO_ROUNDS         分几轮跑完，1 = 一次跑满当日上限 25/25
+#   VYLO_WAIT_MAX       单次任务最长等待秒数
+#   SOCKS_PORT          本地 socks 端口（被占用会自动避让）
+#   SINGBOX_CFG         sing-box 配置文件名（默认 sing-box_config.json）
+#   DEBUG_HTML          失败时是否保存页面 HTML
+#   LOG_DIR / SCREENSHOT_DIR  产物目录（相对 app/）
+#
+# ── 再加一个账号要改什么 ──
+#   1. 复制本文件为 switched-farm-2.yml
+#   2. 把文件里所有 _1 改成 _2，name 里的 #1 改成 #2
+#   3. ACCOUNT_ID 改成 '2'
+#   4. cron 错开，例如 '10 02 * * *'
+#   5. 到 Settings → Secrets 添加 _2 结尾的 5 个密钥
+#   并发组随工作流名自动隔离，artifact 名和 time 路径随 ACCOUNT_ID 自动隔离。
+# ───────────────────────────────────────────────────────────────
 name: "🪙 Switched Token Farm #1"
 
 on:
@@ -23,34 +42,37 @@ on:
         description: '失败时保存页面 HTML（1 开 / 0 关）'
         required: false
         default: '1'
+      vylo_wait_max:
+        description: '单次任务最长等待秒数'
+        required: false
+        default: '600'
 
-# 同一账号的多余排队直接取消，避免堆积
+# 同一账号的多余排队直接取消，避免堆积。
+# 组名带工作流名，所以多账号之间互不取消。
 concurrency:
   group: Switched_Token_Farm_${{ github.workflow }}
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: write   # 需要提交 switched/<N>/time.txt
 
 env:
-  # ── 账号标识：多账号时每个 yml 填不同数字 ──
+  # ── 账号标识：每个 yml 填不同数字 ──
   ACCOUNT_ID: '1'
 
-  # ── 该账号的凭证（Secret 名称带 _1 后缀）──
+  # ── 该账号的凭证（Secret 名称必须带 _1 后缀）──
   SWITCHED_USER_1: ${{ secrets.SWITCHED_USER_1 }}
   SWITCHED_PASS_1: ${{ secrets.SWITCHED_PASS_1 }}
   PROXY_CONTENT_1: ${{ secrets.PROXY_CONTENT_1 }}
   TG_TOKEN_1: ${{ secrets.TG_TOKEN_1 }}
   TG_CHAT_1: ${{ secrets.TG_CHAT_1 }}
 
-  # ── 汇总通知（不配则各账号各发各的）──
-  TG_TOKEN_SUMMARY: ${{ secrets.TG_TOKEN_SUMMARY }}
-  TG_CHAT_SUMMARY: ${{ secrets.TG_CHAT_SUMMARY }}
-
-  # ── 运行参数 ──
+  # ── 运行参数（与代码里的 env() / env_int() 一一对应）──
   VYLO_ROUNDS: ${{ github.event.inputs.rounds || '1' }}
-  VYLO_WAIT_MAX: '600'
+  VYLO_WAIT_MAX: ${{ github.event.inputs.vylo_wait_max || '600' }}
   DEBUG_HTML: ${{ github.event.inputs.debug_html || '1' }}
+  SOCKS_PORT: '10808'
+  SINGBOX_CFG: sing-box_config.json
   LOG_DIR: logs
   SCREENSHOT_DIR: screenshots
   PYTHONUNBUFFERED: '1'
@@ -62,11 +84,11 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      # ── 1) 公开库：只为提交 time.txt ──
+      # ── 1) 公开库：只为了最后提交 switched/<N>/time.txt ──
       - name: 检出公开仓库
         uses: actions/checkout@v4
 
-      # ── 2) 私有库：只读检出代码（deploy key，无过期）──
+      # ── 2) 私有库：用 token 检出代码到 app/ ──
       - name: 检出私有代码库
         uses: actions/checkout@v4
         with:
@@ -78,6 +100,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: pip
 
       - name: 安装系统依赖
         run: |
@@ -86,14 +109,17 @@ jobs:
             xvfb unzip curl jq \
             libglib2.0-0 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
             libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 \
-            libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2t64
+            libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2
+          # libasound2 在不同 Ubuntu 版本包名不同，单独兜底
+          sudo apt-get install -y -qq libasound2t64 2>/dev/null \
+            || sudo apt-get install -y -qq libasound2 2>/dev/null || true
 
-      # ── 3) 依赖全部用 requirements.txt 里的 == 精确版本 ──
+      # ── 3) 依赖全部走 requirements.txt 里的 == 精确版本 ──
       - name: 安装 Python 依赖
         run: |
           python -m pip install --upgrade pip
           pip install -r app/requirements.txt
-          echo "已安装版本："
+          echo "===== 已安装版本 ====="
           pip list 2>/dev/null | grep -Ei 'seleniumbase|selenium|requests|pyvirtualdisplay'
 
       - name: 安装 sing-box
@@ -101,17 +127,17 @@ jobs:
           set -e
           ARCH=$(uname -m)
           case "$ARCH" in
-            x86_64) SB_ARCH=amd64 ;;
+            x86_64)  SB_ARCH=amd64 ;;
             aarch64) SB_ARCH=arm64 ;;
             *) echo "不支持的架构 $ARCH"; exit 1 ;;
           esac
           VER=$(curl -fsSL https://api.github.com/repos/SagerNet/sing-box/releases/latest \
                 | jq -r .tag_name | sed 's/^v//')
-          echo "sing-box 版本: $VER"
+          echo "sing-box 版本: $VER ($SB_ARCH)"
           curl -fsSL -o /tmp/sb.tar.gz \
-            "https://github.com/SagerNet/sing-box/releases/download/v${VER}/sing-box-${VER}-linux-${SB_ARCH}.tar.gz"
+            "https://github.com/SagerNet/sing-box/releases/download/v${{VER}}/sing-box-${{VER}}-linux-${{SB_ARCH}}.tar.gz"
           tar -xzf /tmp/sb.tar.gz -C /tmp
-          cp "/tmp/sing-box-${VER}-linux-${SB_ARCH}/sing-box" app/sing-box
+          cp "/tmp/sing-box-${{VER}}-linux-${{SB_ARCH}}/sing-box" app/sing-box
           chmod +x app/sing-box
           app/sing-box version
 
@@ -131,7 +157,7 @@ jobs:
         continue-on-error: true
         working-directory: app
         run: |
-          # 关掉 errexit：脚本非 0 也要把退出码写进 output，否则后续判定读到空值
+          # 关掉 errexit：脚本非 0 也要把退出码写进 output，否则判定步骤读到空值
           set +e
           set -o pipefail
           mkdir -p "$LOG_DIR"
@@ -153,7 +179,7 @@ jobs:
           echo "===== summary.json ====="
           cat "app/$LOG_DIR/summary.json" 2>/dev/null || echo "(无)"
 
-      # ── 5) 只收集需要排查的文件，sing-box 日志与配置一律不进 artifact ──
+      # ── 5) 只收集排查用文件；sing-box 日志与配置一律不进 artifact ──
       - name: 整理上传目录（排除 sing-box 日志与配置）
         if: always()
         run: |
@@ -167,10 +193,10 @@ jobs:
             find "app/$SCREENSHOT_DIR" -maxdepth 1 -type f -iname '*.png' \
               -exec cp -f {} artifact/screenshots/ \; 2>/dev/null || true
           fi
-          # 兜底再删一次，防止任何形式的代理文件混入
+          # 兜底再删一次，任何形式的代理文件都不许混入
           rm -f artifact/logs/*sing-box* artifact/logs/*singbox*
           rm -f artifact/*sing-box_config.json
-          echo "待上传：" && ls -R artifact | head -30
+          echo "===== 待上传 =====" && ls -R artifact | head -30
 
       - name: 上传日志
         if: always()
@@ -190,27 +216,28 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-      # ── 6) 记录执行时间（多账号各写各的文件）──
+      # ── 6) 记录执行时间（路径随 ACCOUNT_ID 隔离：switched/<N>/time.txt）──
       - name: 提交执行时间
         if: always()
         run: |
           TIME_DIR="switched/${ACCOUNT_ID}"
           TIME_FILE="${TIME_DIR}/time.txt"
           mkdir -p "$TIME_DIR"
-          {
+          {{
             echo "账号: #${ACCOUNT_ID}"
             echo "时间: $(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M:%S %Z')"
             echo "UTC : $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
             echo "结果: ${{ steps.run.outputs.exit_code }}"
             echo "轮数: ${VYLO_ROUNDS}"
+            echo "等待上限: ${VYLO_WAIT_MAX}s"
             echo "触发: ${{ github.event_name }}"
-          } > "$TIME_FILE"
+          }} > "$TIME_FILE"
           cat "$TIME_FILE"
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "$TIME_FILE"
           git diff --cached --quiet || git commit -m "chore: 账号 #${ACCOUNT_ID} 执行时间 $(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M')"
-          git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
+          git pull --rebase --autostash origin "${{GITHUB_REF_NAME}}" || true
           git push || echo "推送失败（可能无变更或权限不足）"
 
       - name: 清理旧运行
@@ -220,20 +247,22 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           KEEP=5
+          # 只清理本工作流的旧运行，且绝不删当前这一次
           RUNS=$(gh api "repos/${{ github.repository }}/actions/runs?per_page=100" \
-                 --jq ".workflow_runs[] | select(.name==\"${{ github.workflow }}\") | .id" \
+                 --jq ".workflow_runs[] | select(.name==\"${{ github.workflow }}\" and .id != ${{ github.run_id }}) | .id" \
                  | tail -n +$((KEEP+1)))
+          if [ -z "$RUNS" ]; then echo "无需清理"; exit 0; fi
           for id in $RUNS; do
             gh api -X DELETE "repos/${{ github.repository }}/actions/runs/$id" && echo "已删除 run $id"
           done
 
-      # ── 7) 退出码判定 ──
+      # ── 7) 退出码判定（满额也走 exit 0，不算失败）──
       - name: 按脚本退出码判定结果
         if: always()
         run: |
           code="${{ steps.run.outputs.exit_code }}"
-          echo "脚本退出码: ${code:-未知}"
-          if [ "${code}" != "0" ]; then
-            echo "::error::farm_switched.py 退出码 ${code}，请查看 switched-logs-acct${{ env.ACCOUNT_ID }} artifact"
+          echo "脚本退出码: ${{code:-未知}}"
+          if [ "${{code}}" != "0" ]; then
+            echo "::error::farm_switched.py 退出码 ${{code}}，请查看 switched-logs-acct${{ env.ACCOUNT_ID }} artifact"
             exit 1
           fi
