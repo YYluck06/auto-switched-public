@@ -52,13 +52,12 @@ switched.cloud 每日 Cloud Token 自动领取 —— **只放 GitHub Actions �
 
 换句话说，`RENEW_THRESHOLD_DAYS` 是**上限**：续期后的 Runtime 绝不会超过它。
 
-### 三个参数（直接改 yml 里的 `env`，不用建 Secret）
+### 两个参数（直接改 yml 里的 `env`，不用建 Secret）
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
 | `RENEW_ENABLED` | `1` | `1` 开 / `0` 关，关掉就只刷币不续期 |
 | `RENEW_THRESHOLD_DAYS` | `5` | **续期后 Runtime 的上限**；加完 2 天会超过它就不续 |
-| `RENEW_MAX_TIMES` | `3` | 单次运行最多点几次，防止 token 被一次性抽干 |
 
 ### 续期逻辑
 
@@ -69,7 +68,7 @@ switched.cloud 每日 Cloud Token 自动领取 —— **只放 GitHub Actions �
         └─ 当前 Runtime + 2 天 ≤ RENEW_THRESHOLD_DAYS ?
               ├─ 否 → 不续期（续了就会超上限）
               └─ 是 → 点 Add runtime → 弹窗确认（数量固定 1）→ 重新读 Runtime
-                    └─ 再加 2 天仍不超上限且未满 RENEW_MAX_TIMES → 再续一次
+                    └─ 再加 2 天仍不超上限 → 继续续，直到再加就会超为止
 ```
 
 阈值 `5` 天时的行为：
@@ -86,8 +85,11 @@ switched.cloud 每日 Cloud Token 自动领取 —— **只放 GitHub Actions �
 
 > 边界是**包含**的：`3d 0h + 2d = 5d`，等于阈值，允许续期。
 >
-> 想囤更多天数就把 `RENEW_THRESHOLD_DAYS` 调大，但同时要留意
-> `RENEW_MAX_TIMES` 会限制单次运行最多续几次（默认 3 次 = 最多 +6 天）。
+> 续期次数不设上限，会一直续到「再加 2 天就超阈值」为止。想囤更多天数
+> 就把 `RENEW_THRESHOLD_DAYS` 调大，比如 `14` 就会一路续到接近 14 天。
+>
+> 每次点击后都会重新读 Runtime，如果发现**没变多**（页面没刷新 / 接口异常），
+> 立即停止并在报告里标 `⚠️ 续期后 Runtime 未增加，已停止`，不会空转烧 token。
 
 ### 与刷币完全隔离
 

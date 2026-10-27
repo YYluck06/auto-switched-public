@@ -20,8 +20,7 @@
 #
 #   ── VPS Runtime 自动续期（直接改这里的值，不用建 Secret）──
 #   RENEW_ENABLED        1 开 / 0 关
-#   RENEW_THRESHOLD_DAYS 剩余 Runtime <= 这个天数就自动续期（默认 5）
-#   RENEW_MAX_TIMES      单次运行最多点几次 Add runtime（每次 +2 天 / -1 token）
+#   RENEW_THRESHOLD_DAYS 续期后 Runtime 的上限：当前+2 天超过它就不续（默认 5）
 #
 # ── 再加一个账号要改什么 ──
 #   1. 复制本文件为 switched-farm-3.yml
@@ -79,10 +78,9 @@ env:
   SOCKS_PORT: '10808'
   SINGBOX_CFG: sing-box_config.json
 
-  # ── VPS Runtime 自动续期（按需改这三个值即可，不需要 Secret）──
+  # ── VPS Runtime 自动续期（按需改这两个值即可，不需要 Secret）──
   RENEW_ENABLED: '1'
   RENEW_THRESHOLD_DAYS: '5'
-  RENEW_MAX_TIMES: '3'
 
   LOG_DIR: logs
   SCREENSHOT_DIR: screenshots
