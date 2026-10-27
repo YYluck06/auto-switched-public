@@ -161,6 +161,9 @@ cp .github/workflows/switched-farm.yml .github/workflows/switched-farm-3.yml
 ├── switched/
 │   ├── 1/time.txt             账号 #1 最近一次执行记录
 │   └── 2/time.txt             账号 #2 最近一次执行记录
+├── tools/
+│   ├── gen-workflows.py       两个 yml 由同一模板生成，加账号只改这里
+│   └── validate-workflows.py  提交前自检（YAML/表达式/bash/env 五项）
 └── README.md
 ```
 
@@ -215,6 +218,34 @@ requests==2.34.2
 |---|---|---|
 | `rounds` | `1` | 分几轮跑完，1 = 一次跑满 25/25 |
 | `debug_html` | `1` | 失败时保存页面 HTML 便于排查 |
+| `vylo_wait_max` | `600` | 单次任务最长等待秒数，任务慢时可临时放宽 |
+
+---
+
+## 改工作流的方式
+
+**不要手工编辑 yml**，两个文件都由同一模板生成：
+
+```bash
+# 1. 改 tools/gen-workflows.py 里的 ACCOUNTS 列表或模板
+vim tools/gen-workflows.py
+
+# 2. 重新生成
+python3 tools/gen-workflows.py
+
+# 3. 提交前自检（五项全过才提交）
+python3 tools/validate-workflows.py
+```
+
+`validate-workflows.py` 会检查：
+
+| 检查项 | 挡住的坑 |
+|---|---|
+| YAML 语法 | 缩进、引号错误 |
+| `${{ }}` 上下文名是否合法 | shell 变量误写成表达式 → dispatch 返回 422 |
+| `${{ }}` 之外是否残留 `{{` 或 `}}` | shell 代码块变成 `{{ ... }}` → `exit 127` |
+| 每个 `run` 脚本 `bash -n` | 脚本语法错误 |
+| yml 环境变量 vs 代码 `env()` 读取 | 声明了没人读的死配置 / 代码要读却没声明 |
 
 ---
 
