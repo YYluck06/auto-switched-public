@@ -7,24 +7,9 @@ switched.cloud 每日 Cloud Token 自动领取 —— **只放 GitHub Actions �
 
 ---
 
-## 相关站点（备用备忘）
+## 相关站点
 
-| 用途 | 地址 |
-|---|---|
-| **控制面板 · 领取页** | https://panel.switched.cloud/tokens |
-| **控制面板 · 首页** | https://panel.switched.cloud |
-| SSO 统一登录 | https://accounts.noprofit.space/login |
-| SSO 注册 | https://accounts.noprofit.space/register |
-| SSO 账号中心 | https://accounts.noprofit.space/dashboard |
-| noprofit 主站 | https://noprofit.space |
-| 服务条款 | https://noprofit.space/terms |
-| 隐私政策 | https://noprofit.space/privacy |
-| 官方 Discord | https://discord.gg/DTGbwcJhCK |
-| Vylo（短链广告商） | https://vylo.cc |
-| sing-box 发布页 | https://github.com/SagerNet/sing-box/releases |
-
-> 面板里有两个广告商入口：`Earn with Linkvertise` 和 `Earn with Vylo`。
-> 本项目只走 **Vylo**，Linkvertise 那条是 40 分钟以上倒计时，不实用。
+[控制面板](https://panel.switched.cloud)
 
 ---
 
@@ -61,7 +46,7 @@ switched.cloud 每日 Cloud Token 自动领取 —— **只放 GitHub Actions �
 
 ## VPS Runtime 自动续期
 
-刷币跑完后，脚本会打开 `https://panel.switched.cloud/vps`，逐台检查剩余 Runtime。
+刷币跑完后，脚本会打开[控制面板的 VPS 页](https://panel.switched.cloud/vps)，逐台检查剩余 Runtime。
 **剩余天数 ≤ 阈值** 时自动点 `Add runtime`（一次 `+2 天`，消耗 `1 Cloud Token`）。
 
 ### 三个参数（直接改 yml 里的 `env`，不用建 Secret）
@@ -95,34 +80,6 @@ switched.cloud 每日 Cloud Token 自动领取 —— **只放 GitHub Actions �
 | 续期自身异常 | 只记录到 `⚠️ 异常阶段`，刷币结果与退出码不受影响 |
 | token 余额为 0 | 弹窗里读到 `You have 0 Cloud Tokens` 就取消，不乱点 |
 | 页面加载失败 | 列表页/详情页各重试 3~4 次；仍失败则报告 `⚠️ 续期检查失败`，**不会**伪装成「无vps」 |
-
-### 报告里新增的 VPS 段
-
-```
-🖥 VPS 信息
-📛 实例名: vps-yux
-🧩 规格: 4C12GB
-⏳ Runtime: 8d 19h（✅ 续期 +2d / -1 token）
-⚙️ 类型: Container / Debian 13 / France 1
-🔌 SSH: ssh root@fr1.switched.cloud -p 21500
-🌐 IPv6: 2a11:6c7:1900:8800::10fa
-🔓 可用端口: fr1.switched.cloud 21500-21505
-```
-
-| 字段 | 来源 |
-|---|---|
-| 实例名 | 列表页卡片 / 详情页标题上一行 |
-| 规格 | 详情页 `Resources` 的 CPU 核数 + Memory → `4C12GB` |
-| Runtime | 详情页 `N days H hours of runtime left` |
-| 类型 | 详情页 `System` 区的 `Kind`（如 `Virtual machine` / `Container`） |
-| SSH | 详情页 `ssh root@host -p PORT` 原文 |
-| IPv6 | 详情页 `IPv6 address` |
-| 可用端口 | 详情页 `Ports` 列表；连续段合并成 `21500-21505`，不连续则 `21494, 21496, 21500` |
-
-多台 VPS 会依次列出；没有实例时显示 `🖥 VPS: 无vps`。
-
-> 已被删除的实例会以「幽灵链接」形式残留在列表页 DOM 里（卡片无文字）。
-> 脚本只认**卡片带文字**的链接，幽灵链接一律忽略，不会误续期、也不会误报实例数量。
 
 ---
 
