@@ -81,7 +81,7 @@ env:
 
   # ── VPS Runtime 自动续期（按需改这三个值即可，不需要 Secret）──
   RENEW_ENABLED: '1'
-  RENEW_THRESHOLD_DAYS: '5'
+  RENEW_THRESHOLD_DAYS: '7'
   RENEW_MAX_TIMES: '3'
 
   LOG_DIR: logs
