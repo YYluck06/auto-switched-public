@@ -47,14 +47,17 @@ switched.cloud 每日 Cloud Token 自动领取 —— **只放 GitHub Actions �
 ## VPS Runtime 自动续期
 
 刷币跑完后，脚本会打开[控制面板的 VPS 页](https://panel.switched.cloud/vps)，逐台检查剩余 Runtime。
-**剩余天数 ≤ 阈值** 时自动点 `Add runtime`（一次 `+2 天`，消耗 `1 Cloud Token`）。
+只有在 **「当前 Runtime + 本次续期的 2 天 ≤ 阈值」** 时才点 `Add runtime`
+（一次 `+2 天`，消耗 `1 Cloud Token`）。
+
+换句话说，`RENEW_THRESHOLD_DAYS` 是**上限**：续期后的 Runtime 绝不会超过它。
 
 ### 三个参数（直接改 yml 里的 `env`，不用建 Secret）
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
 | `RENEW_ENABLED` | `1` | `1` 开 / `0` 关，关掉就只刷币不续期 |
-| `RENEW_THRESHOLD_DAYS` | `5` | 剩余 Runtime ≤ 这个天数就触发续期 |
+| `RENEW_THRESHOLD_DAYS` | `5` | **续期后 Runtime 的上限**；加完 2 天会超过它就不续 |
 | `RENEW_MAX_TIMES` | `3` | 单次运行最多点几次，防止 token 被一次性抽干 |
 
 ### 续期逻辑
@@ -63,13 +66,28 @@ switched.cloud 每日 Cloud Token 自动领取 —— **只放 GitHub Actions �
 读取 /vps 列表
   └─ 无实例 → 报告写「无vps」，直接结束
   └─ 有实例 → 逐台进详情页
-        └─ 剩余 Runtime ≤ RENEW_THRESHOLD_DAYS ?
-              ├─ 否 → 不续期
+        └─ 当前 Runtime + 2 天 ≤ RENEW_THRESHOLD_DAYS ?
+              ├─ 否 → 不续期（续了就会超上限）
               └─ 是 → 点 Add runtime → 弹窗确认（数量固定 1）→ 重新读 Runtime
-                    └─ 仍 ≤ 阈值且未超 RENEW_MAX_TIMES → 再续一次
+                    └─ 再加 2 天仍不超上限且未满 RENEW_MAX_TIMES → 再续一次
 ```
 
-例：剩余 `2d 19h`、阈值 `5` 天 → 续 1 次得 `4d 19h`（仍 ≤ 5）→ 再续 1 次得 `6d 19h`，停止。共消耗 2 token。
+阈值 `5` 天时的行为：
+
+| 当前 Runtime | 续期后 | 是否续 | 最终 |
+|---|---|---|---|
+| `0d 12h` | `2d 12h` → `4d 12h` → `6d 12h` ❌ | 续 2 次 | `4d 12h` |
+| `1d 0h` | `3d 0h` → `5d 0h` → `7d 0h` ❌ | 续 2 次 | `5d 0h` |
+| `2d 19h` | `4d 19h` → `6d 19h` ❌ | 续 1 次 | `4d 19h` |
+| `3d 0h` | `5d 0h` → `7d 0h` ❌ | 续 1 次 | `5d 0h` |
+| `3d 12h` | `5d 12h` ❌ | 不续 | `3d 12h` |
+| `4d 0h` | `6d 0h` ❌ | 不续 | `4d 0h` |
+| `8d 18h` | `10d 18h` ❌ | 不续 | `8d 18h` |
+
+> 边界是**包含**的：`3d 0h + 2d = 5d`，等于阈值，允许续期。
+>
+> 想囤更多天数就把 `RENEW_THRESHOLD_DAYS` 调大，但同时要留意
+> `RENEW_MAX_TIMES` 会限制单次运行最多续几次（默认 3 次 = 最多 +6 天）。
 
 ### 与刷币完全隔离
 
