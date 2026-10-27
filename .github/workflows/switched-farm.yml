@@ -18,6 +18,11 @@
 #   DEBUG_HTML          失败时是否保存页面 HTML
 #   LOG_DIR / SCREENSHOT_DIR  产物目录（相对 app/）
 #
+#   ── VPS Runtime 自动续期（直接改这里的值，不用建 Secret）──
+#   RENEW_ENABLED        1 开 / 0 关
+#   RENEW_THRESHOLD_DAYS 剩余 Runtime <= 这个天数就自动续期（默认 5）
+#   RENEW_MAX_TIMES      单次运行最多点几次 Add runtime（每次 +2 天 / -1 token）
+#
 # ── 再加一个账号要改什么 ──
 #   1. 复制本文件为 switched-farm-2.yml
 #   2. 把文件里所有 _1 改成 _2，name 里的 #1 改成 #2
@@ -73,6 +78,12 @@ env:
   DEBUG_HTML: ${{ github.event.inputs.debug_html || '1' }}
   SOCKS_PORT: '10808'
   SINGBOX_CFG: sing-box_config.json
+
+  # ── VPS Runtime 自动续期（按需改这三个值即可，不需要 Secret）──
+  RENEW_ENABLED: '1'
+  RENEW_THRESHOLD_DAYS: '5'
+  RENEW_MAX_TIMES: '3'
+
   LOG_DIR: logs
   SCREENSHOT_DIR: screenshots
   PYTHONUNBUFFERED: '1'
@@ -133,7 +144,7 @@ jobs:
           esac
           VER=$(curl -fsSL https://api.github.com/repos/SagerNet/sing-box/releases/latest \
                 | jq -r .tag_name | sed 's/^v//')
-          echo "sing-box 版本: ${VER} (${SB_ARCH})"
+          echo "sing-box 版本: $VER ($SB_ARCH)"
           curl -fsSL -o /tmp/sb.tar.gz \
             "https://github.com/SagerNet/sing-box/releases/download/v${VER}/sing-box-${VER}-linux-${SB_ARCH}.tar.gz"
           tar -xzf /tmp/sb.tar.gz -C /tmp

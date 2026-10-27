@@ -32,6 +32,11 @@ TEMPLATE = '''\
 #   DEBUG_HTML          失败时是否保存页面 HTML
 #   LOG_DIR / SCREENSHOT_DIR  产物目录（相对 app/）
 #
+#   ── VPS Runtime 自动续期（直接改这里的值，不用建 Secret）──
+#   RENEW_ENABLED        1 开 / 0 关
+#   RENEW_THRESHOLD_DAYS 剩余 Runtime <= 这个天数就自动续期（默认 5）
+#   RENEW_MAX_TIMES      单次运行最多点几次 Add runtime（每次 +2 天 / -1 token）
+#
 # ── 再加一个账号要改什么 ──
 #   1. 复制本文件为 switched-farm-{NEXT}.yml
 #   2. 把文件里所有 _{N} 改成 _{NEXT}，name 里的 #{N} 改成 #{NEXT}
@@ -83,6 +88,12 @@ env:
   DEBUG_HTML: ${{{{ github.event.inputs.debug_html || '1' }}}}
   SOCKS_PORT: '10808'
   SINGBOX_CFG: sing-box_config.json
+
+  # ── VPS Runtime 自动续期（按需改这三个值即可，不需要 Secret）──
+  RENEW_ENABLED: '1'
+  RENEW_THRESHOLD_DAYS: '5'
+  RENEW_MAX_TIMES: '3'
+
   LOG_DIR: logs
   SCREENSHOT_DIR: screenshots
   PYTHONUNBUFFERED: '1'
@@ -145,9 +156,9 @@ jobs:
                 | jq -r .tag_name | sed 's/^v//')
           echo "sing-box 版本: $VER ($SB_ARCH)"
           curl -fsSL -o /tmp/sb.tar.gz \\
-            "https://github.com/SagerNet/sing-box/releases/download/v${{VER}}/sing-box-${{VER}}-linux-${{SB_ARCH}}.tar.gz"
+            "https://github.com/SagerNet/sing-box/releases/download/v${VER}/sing-box-${VER}-linux-${SB_ARCH}.tar.gz"
           tar -xzf /tmp/sb.tar.gz -C /tmp
-          cp "/tmp/sing-box-${{VER}}-linux-${{SB_ARCH}}/sing-box" app/sing-box
+          cp "/tmp/sing-box-${VER}-linux-${SB_ARCH}/sing-box" app/sing-box
           chmod +x app/sing-box
           app/sing-box version
 
@@ -233,7 +244,7 @@ jobs:
           TIME_DIR="switched/${ACCOUNT_ID}"
           TIME_FILE="${TIME_DIR}/time.txt"
           mkdir -p "$TIME_DIR"
-          {{
+          {
             echo "账号: #${ACCOUNT_ID}"
             echo "时间: $(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M:%S %Z')"
             echo "UTC : $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
@@ -241,13 +252,13 @@ jobs:
             echo "轮数: ${VYLO_ROUNDS}"
             echo "等待上限: ${VYLO_WAIT_MAX}s"
             echo "触发: ${{{{ github.event_name }}}}"
-          }} > "$TIME_FILE"
+          } > "$TIME_FILE"
           cat "$TIME_FILE"
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "$TIME_FILE"
           git diff --cached --quiet || git commit -m "chore: 账号 #${ACCOUNT_ID} 执行时间 $(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M')"
-          git pull --rebase --autostash origin "${{GITHUB_REF_NAME}}" || true
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
           git push || echo "推送失败（可能无变更或权限不足）"
 
       - name: 清理旧运行
@@ -271,9 +282,9 @@ jobs:
         if: always()
         run: |
           code="${{{{ steps.run.outputs.exit_code }}}}"
-          echo "脚本退出码: ${{code:-未知}}"
-          if [ "${{code}}" != "0" ]; then
-            echo "::error::farm_switched.py 退出码 ${{code}}，请查看 switched-logs-acct${{{{ env.ACCOUNT_ID }}}} artifact"
+          echo "脚本退出码: ${code:-未知}"
+          if [ "${code}" != "0" ]; then
+            echo "::error::farm_switched.py 退出码 ${code}，请查看 switched-logs-acct${{{{ env.ACCOUNT_ID }}}} artifact"
             exit 1
           fi
 '''

@@ -91,7 +91,7 @@ def code_env_reads() -> set[str] | None:
         f = private / name
         if f.exists():
             code += f.read_text(encoding="utf-8", errors="ignore")
-    reads = set(re.findall(r'env(?:_int)?\("([A-Z_]+)"', code))
+    reads = set(re.findall(r'env(?:_int|_float|_flag)?\("([A-Z_]+)"', code))
     reads |= set(re.findall(r'os\.environ\.get\("([A-Z_]+)"', code))
     return reads or None
 

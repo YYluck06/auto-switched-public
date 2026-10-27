@@ -33,6 +33,7 @@ switched.cloud 每日 Cloud Token 自动领取 —— **只放 GitHub Actions �
 | 项目 | 说明 |
 |---|---|
 | 触发 | 账号 #1 `10 01 * * *`、账号 #2 `40 01 * * *`（UTC，即北京 09:10 / 09:40） |
+| 附加动作 | 刷币结束后自动检查 VPS Runtime，低于阈值就续期（见下节） |
 | 单次目标 | 一轮跑满当日上限 **25/25** |
 | 收益 | 每个 Vylo 任务 **+2 token**，跑满 25 次 = **+50 token** |
 | 实测耗时 | 25 次约 **44 分钟**（约 1.7 分钟/次），`timeout-minutes: 120` 足够 |
@@ -54,6 +55,74 @@ switched.cloud 每日 Cloud Token 自动领取 —— **只放 GitHub Actions �
 ```
 
 重复到 `25/25`，面板会显示 `That's all for today.`
+
+
+---
+
+## VPS Runtime 自动续期
+
+刷币跑完后，脚本会打开 `https://panel.switched.cloud/vps`，逐台检查剩余 Runtime。
+**剩余天数 ≤ 阈值** 时自动点 `Add runtime`（一次 `+2 天`，消耗 `1 Cloud Token`）。
+
+### 三个参数（直接改 yml 里的 `env`，不用建 Secret）
+
+| 变量 | 默认 | 说明 |
+|---|---|---|
+| `RENEW_ENABLED` | `1` | `1` 开 / `0` 关，关掉就只刷币不续期 |
+| `RENEW_THRESHOLD_DAYS` | `5` | 剩余 Runtime ≤ 这个天数就触发续期 |
+| `RENEW_MAX_TIMES` | `3` | 单次运行最多点几次，防止 token 被一次性抽干 |
+
+### 续期逻辑
+
+```
+读取 /vps 列表
+  └─ 无实例 → 报告写「无vps」，直接结束
+  └─ 有实例 → 逐台进详情页
+        └─ 剩余 Runtime ≤ RENEW_THRESHOLD_DAYS ?
+              ├─ 否 → 不续期
+              └─ 是 → 点 Add runtime → 弹窗确认（数量固定 1）→ 重新读 Runtime
+                    └─ 仍 ≤ 阈值且未超 RENEW_MAX_TIMES → 再续一次
+```
+
+例：剩余 `2d 19h`、阈值 `5` 天 → 续 1 次得 `4d 19h`（仍 ≤ 5）→ 再续 1 次得 `6d 19h`，停止。共消耗 2 token。
+
+### 与刷币完全隔离
+
+| 场景 | 行为 |
+|---|---|
+| 刷币全部失败 | 仍执行续期 |
+| 刷币抛异常中断 | 异常分支里补跑一次续期，然后才退出 |
+| 续期自身异常 | 只记录到 `⚠️ 异常阶段`，刷币结果与退出码不受影响 |
+| token 余额为 0 | 弹窗里读到 `You have 0 Cloud Tokens` 就取消，不乱点 |
+| 页面加载失败 | 列表页/详情页各重试 3~4 次；仍失败则报告 `⚠️ 续期检查失败`，**不会**伪装成「无vps」 |
+
+### 报告里新增的 VPS 段
+
+```
+🖥 VPS 信息
+📛 实例名: vps-yux
+🧩 规格: 4C12GB
+⏳ Runtime: 8d 19h（✅ 续期 +2d / -1 token）
+⚙️ 类型: Container / Debian 13 / France 1
+🔌 SSH: ssh root@fr1.switched.cloud -p 21500
+🌐 IPv6: 2a11:6c7:1900:8800::10fa
+🔓 可用端口: fr1.switched.cloud 21500-21505
+```
+
+| 字段 | 来源 |
+|---|---|
+| 实例名 | 列表页卡片 / 详情页标题上一行 |
+| 规格 | 详情页 `Resources` 的 CPU 核数 + Memory → `4C12GB` |
+| Runtime | 详情页 `N days H hours of runtime left` |
+| 类型 | 详情页 `System` 区的 `Kind`（如 `Virtual machine` / `Container`） |
+| SSH | 详情页 `ssh root@host -p PORT` 原文 |
+| IPv6 | 详情页 `IPv6 address` |
+| 可用端口 | 详情页 `Ports` 列表；连续段合并成 `21500-21505`，不连续则 `21494, 21496, 21500` |
+
+多台 VPS 会依次列出；没有实例时显示 `🖥 VPS: 无vps`。
+
+> 已被删除的实例会以「幽灵链接」形式残留在列表页 DOM 里（卡片无文字）。
+> 脚本只认**卡片带文字**的链接，幽灵链接一律忽略，不会误续期、也不会误报实例数量。
 
 ---
 
@@ -219,6 +288,8 @@ requests==2.34.2
 | `rounds` | `1` | 分几轮跑完，1 = 一次跑满 25/25 |
 | `debug_html` | `1` | 失败时保存页面 HTML 便于排查 |
 | `vylo_wait_max` | `600` | 单次任务最长等待秒数，任务慢时可临时放宽 |
+
+> 续期阈值不走 `workflow_dispatch` 输入，直接改 yml 的 `env` 即可。
 
 ---
 
