@@ -223,7 +223,7 @@ jobs:
           TIME_DIR="switched/${ACCOUNT_ID}"
           TIME_FILE="${TIME_DIR}/time.txt"
           mkdir -p "$TIME_DIR"
-          {{
+          {
             echo "账号: #${ACCOUNT_ID}"
             echo "时间: $(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M:%S %Z')"
             echo "UTC : $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
@@ -231,7 +231,7 @@ jobs:
             echo "轮数: ${VYLO_ROUNDS}"
             echo "等待上限: ${VYLO_WAIT_MAX}s"
             echo "触发: ${{ github.event_name }}"
-          }} > "$TIME_FILE"
+          } > "$TIME_FILE"
           cat "$TIME_FILE"
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
